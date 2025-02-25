@@ -1,0 +1,23 @@
+name: "API Governance Validator"
+description: "Valida boas práticas e governança de APIs em .NET"
+inputs:
+  project-path:
+    description: "Caminho do projeto .NET Core"
+    required: true
+    default: "./"
+
+runs:
+  using: "composite"
+  steps:
+    - name: Configurar .NET
+      uses: actions/setup-dotnet@v3
+      with:
+        dotnet-version: '8.0.x'
+
+    - name: Restaurar dependências
+      run: dotnet restore ${{ inputs.project-path }}
+      shell: bash
+
+    - name: Executar validação de governança
+      run: bash $GITHUB_ACTION_PATH/validate-api.sh ${{ inputs.project-path }}
+      shell: bash

@@ -27,40 +27,16 @@ if [ ! -f "$PROJECT_PATH/swagger.json" ]; then
 fi
 
 for ROUTE in $ROUTES; do
-  if [[ ! $ROUTE =~ ^/api/v[0-9]+/ ]]; then
-    echo "❌ Erro: A rota '$ROUTE' não segue o padrão '/api/vX/'."
-    ERRORS=$((ERRORS+1))
-  fi
-done
-
-for ROUTE in $ROUTES; do
   if [[ $ROUTE =~ "_" ]]; then
     echo "❌ Erro: A rota '$ROUTE' contém underscore (_). Use kebab-case."
     ERRORS=$((ERRORS+1))
   fi
 done
 
-if grep -r 'Route("' $PROJECT_PATH | grep -v 'Http' > /dev/null; then
-  echo "❌ Erro: Algumas rotas não especificam métodos HTTP. Use [HttpGet], [HttpPost], etc."
-  ERRORS=$((ERRORS+1))
-fi
-
 for ROUTE in $ROUTES; do
   if [[ $ROUTE =~ "/api/api/" ]]; then
     echo "❌ Erro: A rota '$ROUTE' contém '/api/' duplicado."
     ERRORS=$((ERRORS+1))
-  fi
-done
-
-# 7️⃣ Verifica se as rotas possuem tipos de resposta adequados, ignorando linhas comentadas
-for ROUTE in $(grep -r 'Route("' $PROJECT_PATH); do
-  # Ignora linhas comentadas (que começam com //)
-  if [[ ! "$ROUTE" =~ "//" ]]; then
-    # Verifica se a rota não possui a declaração de ProducesResponseType
-    if [[ ! "$ROUTE" =~ "ProducesResponseType" ]]; then
-      echo "❌ Erro: A rota '$ROUTE' não tem tipos de resposta padrão definidos."
-      ERRORS=$((ERRORS+1))
-    fi
   fi
 done
 

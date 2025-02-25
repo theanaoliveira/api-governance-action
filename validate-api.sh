@@ -7,7 +7,7 @@ echo "🔎 Validando governança de APIs em $PROJECT_PATH..."
 # 1️⃣ Validar se todas as rotas possuem versionamento (/v1/, /v2/)
 ROUTES=$(grep -r 'Route("' $PROJECT_PATH | awk -F'"' '{print $2}')
 for ROUTE in $ROUTES; do
-  if [[ ! $ROUTE =~ ^v[0-9]+/ ]]; then
+  if [[ ! $ROUTE =~ /v[0-9]+/ ]]; then
     echo "❌ Erro: A rota '$ROUTE' não possui versionamento explícito (ex: /v1/)."
     ERRORS=$((ERRORS+1))
   fi

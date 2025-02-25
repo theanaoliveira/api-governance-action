@@ -4,28 +4,15 @@ ERRORS=0
 
 echo "🔎 Validando governança de APIs em $PROJECT_PATH..."
 
-# 1️⃣ Verificar a versão global no controlador e garantir que as rotas do método sigam essa versão
-CONTROLLERS=$(grep -r 'Route("api/' $PROJECT_PATH)
-for CONTROLLER in $CONTROLLERS; do
-  # Extrair a versão definida globalmente no controlador (por exemplo, /v1/, /v2/)
-  VERSION=$(echo "$CONTROLLER" | grep -oP 'api/\K[^/]+')
-  
-  if [[ -z "$VERSION" ]]; then
-    continue  # Ignora se não encontrar versão
+# 1️⃣ Validar se todas as rotas possuem versionamento (/v1/, /v2/)
+ROUTES=$(grep -r 'Route("' $PROJECT_PATH | awk -F'"' '{print $2}' | grep -v "\[controller\]")
+for ROUTE in $ROUTES; do
+  if [[ ! $ROUTE =~ /v[0-9]+/ ]]; then
+    echo "❌ Erro: A rota '$ROUTE' não possui versionamento explícito (ex: /v1/)."
+    ERRORS=$((ERRORS+1))
   fi
-
-  # Verifica as rotas do controlador que não são de tipo api/[controller]
-  ROUTES=$(grep -r "Route(\"" $PROJECT_PATH | grep -v "api/\[controller\]" | awk -F'"' '{print $2}')
-  
-  for ROUTE in $ROUTES; do
-    # Verifica se a versão global no controlador é usada nas rotas do controlador
-    if [[ ! $ROUTE =~ "/$VERSION/" && ! $ROUTE =~ "/[a-zA-Z0-9_-]+$" ]]; then
-      echo "❌ Erro: A rota '$ROUTE' no controlador não possui a versão '$VERSION' explícita."
-      ERRORS=$((ERRORS+1))
-    fi
-  done
-
 done
+
 
 # 2️⃣ Validar kebab-case nas rotas
 for ROUTE in $ROUTES; do
@@ -40,7 +27,25 @@ if [ ! -f "$PROJECT_PATH/swagger.json" ]; then
   echo "⚠️ Aviso: O arquivo 'swagger.json' não foi encontrado. Certifique-se de expor o OpenAPI."
 fi
 
-# 4️⃣ Verificar duplicidade '/api/'
+for ROUTE in $ROUTES; do
+  if [[ ! $ROUTE =~ ^/api/v[0-9]+/ ]]; then
+    echo "❌ Erro: A rota '$ROUTE' não segue o padrão '/api/vX/'."
+    ERRORS=$((ERRORS+1))
+  fi
+done
+
+for ROUTE in $ROUTES; do
+  if [[ $ROUTE =~ "_" ]]; then
+    echo "❌ Erro: A rota '$ROUTE' contém underscore (_). Use kebab-case."
+    ERRORS=$((ERRORS+1))
+  fi
+done
+
+if grep -r 'Route("' $PROJECT_PATH | grep -v 'Http' > /dev/null; then
+  echo "❌ Erro: Algumas rotas não especificam métodos HTTP. Use [HttpGet], [HttpPost], etc."
+  ERRORS=$((ERRORS+1))
+fi
+
 for ROUTE in $ROUTES; do
   if [[ $ROUTE =~ "/api/api/" ]]; then
     echo "❌ Erro: A rota '$ROUTE' contém '/api/' duplicado."
@@ -48,7 +53,7 @@ for ROUTE in $ROUTES; do
   fi
 done
 
-# 5️⃣ Verifica se o nome do controller segue a convenção (deve terminar com 'Controller')
+# Verifica se o nome do controller segue a convenção (deve terminar com 'Controller')
 for CONTROLLER in $(grep -r 'Controller' $PROJECT_PATH); do
   if [[ ! $CONTROLLER =~ "Controller$" ]]; then
     echo "❌ Erro: O nome do controller '$CONTROLLER' não segue a convenção 'Controller'."
@@ -56,7 +61,7 @@ for CONTROLLER in $(grep -r 'Controller' $PROJECT_PATH); do
   fi
 done
 
-# 6️⃣ Verifica se os parâmetros de rota estão em kebab-case
+# Verifica se os parâmetros de rota estão em kebab-case
 for ROUTE in $ROUTES; do
   # Extrai parâmetros de rota entre chaves
   PARAMS=$(echo $ROUTE | grep -oP '{\K[^}]+')

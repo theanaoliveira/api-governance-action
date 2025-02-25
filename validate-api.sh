@@ -82,10 +82,13 @@ for ROUTE in $ROUTES; do
 done
 
 
-# Verifica se as rotas possuem tipos de resposta adequados
-for ROUTE in $ROUTES; do
-  if [[ ! $ROUTE =~ "ProducesResponseType" ]]; then
-    echo "❌ Erro: A rota '$ROUTE' não tem tipos de resposta padrão definidos."
-    ERRORS=$((ERRORS+1))
+# Verifica se as rotas possuem tipos de resposta adequados, ignorando linhas comentadas
+for ROUTE in $(grep -r 'Route("' $PROJECT_PATH); do
+  # Ignora linhas comentadas (que começam com //)
+  if ! grep -q "//" <<< "$ROUTE"; then
+    if [[ ! $ROUTE =~ "ProducesResponseType" ]]; then
+      echo "❌ Erro: A rota '$ROUTE' não tem tipos de resposta padrão definidos."
+      ERRORS=$((ERRORS+1))
+    fi
   fi
 done

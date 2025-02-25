@@ -60,3 +60,32 @@ for ROUTE in $ROUTES; do
     ERRORS=$((ERRORS+1))
   fi
 done
+
+# Verifica se o nome do controller segue a convenção (deve terminar com 'Controller')
+for CONTROLLER in $(grep -r 'Controller' $PROJECT_PATH); do
+  if [[ ! $CONTROLLER =~ "Controller$" ]]; then
+    echo "❌ Erro: O nome do controller '$CONTROLLER' não segue a convenção 'Controller'."
+    ERRORS=$((ERRORS+1))
+  fi
+done
+
+# Verifica se os parâmetros de rota estão em kebab-case
+for ROUTE in $ROUTES; do
+  # Extrai parâmetros de rota entre chaves
+  PARAMS=$(echo $ROUTE | grep -oP '{\K[^}]+')
+
+  # Verifica se o parâmetro não está em kebab-case (letras maiúsculas)
+  if [[ $PARAMS =~ [A-Z] ]]; then
+    echo "❌ Erro: O parâmetro '$PARAMS' na rota '$ROUTE' não está em kebab-case."
+    ERRORS=$((ERRORS+1))
+  fi
+done
+
+
+# Verifica se as rotas possuem tipos de resposta adequados
+for ROUTE in $ROUTES; do
+  if [[ ! $ROUTE =~ "ProducesResponseType" ]]; then
+    echo "❌ Erro: A rota '$ROUTE' não tem tipos de resposta padrão definidos."
+    ERRORS=$((ERRORS+1))
+  fi
+done

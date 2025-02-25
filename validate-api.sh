@@ -4,15 +4,38 @@ ERRORS=0
 
 echo "🔎 Validando governança de APIs em $PROJECT_PATH..."
 
-# 1️⃣ Validar se todas as rotas possuem versionamento (/v1/, /v2/)
-ROUTES=$(grep -r 'Route("' $PROJECT_PATH | awk -F'"' '{print $2}' | grep -v "\[controller\]")
-for ROUTE in $ROUTES; do
-  if [[ ! $ROUTE =~ /v[0-9]+/ ]]; then
-    echo "❌ Erro: A rota '$ROUTE' não possui versionamento explícito (ex: /v1/)."
-    ERRORS=$((ERRORS+1))
+# 1️⃣ Verificar a versão global no controlador e garantir que as rotas do método sigam essa versão
+CONTROLLERS=$(grep -r 'Route("api/' $PROJECT_PATH)
+for CONTROLLER in $CONTROLLERS; do
+  # Extrair a versão definida globalmente no controlador (por exemplo, /v1/, /v2/)
+  VERSION=$(echo "$CONTROLLER" | grep -oP 'api/\K[^/]+')
+  
+  if [[ -z "$VERSION" ]]; then
+    continue  # Ignora se não encontrar versão
   fi
-done
 
+  # Pega as rotas do controlador (que não são do tipo api/[controller])
+  ROUTES=$(grep -r "Route(\"" $PROJECT_PATH | grep -v "api/\[controller\]" | awk -F'"' '{print $2}')
+  
+  for ROUTE in $ROUTES; do
+    # Verifica se a versão global no controlador é usada nas rotas do controlador
+    if [[ ! $ROUTE =~ "/$VERSION/" ]]; then
+      echo "❌ Erro: A rota '$ROUTE' no controlador não possui a versão '$VERSION' explícita."
+      ERRORS=$((ERRORS+1))
+    fi
+  done
+
+  # 2️⃣ Verificar métodos que definem versão própria (não global) e garantir que a versão seja consistente
+  METHOD_ROUTES=$(grep -r "Route(\"" $PROJECT_PATH | grep -v "api/\[controller\]" | grep -oP 'Route\("\K[^"]+')
+  
+  for METHOD_ROUTE in $METHOD_ROUTES; do
+    # Verifica se a versão definida no método é consistente
+    if [[ ! $METHOD_ROUTE =~ "/v[0-9]+/" ]]; then
+      echo "❌ Erro: A rota '$METHOD_ROUTE' não possui versão explícita."
+      ERRORS=$((ERRORS+1))
+    fi
+  done
+done
 
 # 2️⃣ Validar kebab-case nas rotas
 for ROUTE in $ROUTES; do
@@ -85,8 +108,9 @@ done
 # Verifica se as rotas possuem tipos de resposta adequados, ignorando linhas comentadas
 for ROUTE in $(grep -r 'Route("' $PROJECT_PATH); do
   # Ignora linhas comentadas (que começam com //)
-  if ! grep -q "//" <<< "$ROUTE"; then
-    if [[ ! $ROUTE =~ "ProducesResponseType" ]]; then
+  if [[ ! "$ROUTE" =~ "//" ]]; then
+    # Verifica se a rota não possui a declaração de ProducesResponseType
+    if [[ ! "$ROUTE" =~ "ProducesResponseType" ]]; then
       echo "❌ Erro: A rota '$ROUTE' não tem tipos de resposta padrão definidos."
       ERRORS=$((ERRORS+1))
     fi
